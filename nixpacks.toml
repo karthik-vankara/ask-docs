@@ -5,4 +5,4 @@ cmds = ["npm install --production=false"]
 cmds = ["npm run build"]
 
 [start]
-cmd = "node dist/api/server.js"
+cmd = "node dist/src/api/server.js"
