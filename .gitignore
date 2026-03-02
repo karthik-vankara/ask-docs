@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Runtime data
+data/uploads/
+data/bm25-index.json
+data/eval/results.json
+data/eval/golden-dataset.json
+data/docs/*
+!data/docs/.gitkeep
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Frontend build
+frontend/dist/
+frontend/node_modules/
+
+# TypeScript cache
+*.tsbuildinfo

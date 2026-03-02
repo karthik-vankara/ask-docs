@@ -1,0 +1,20 @@
+[
+  {
+    "id": "sample-1",
+    "question": "What is the maximum API rate limit?",
+    "groundTruthAnswer": "The maximum API rate limit is 1000 requests per minute per user.",
+    "relevantSources": ["api-docs.pdf"]
+  },
+  {
+    "id": "sample-2",
+    "question": "How does authentication work?",
+    "groundTruthAnswer": "Authentication uses Bearer tokens in the Authorization header. Tokens are obtained via the /auth/login endpoint and expire after 24 hours.",
+    "relevantSources": ["api-docs.pdf", "auth-guide.md"]
+  },
+  {
+    "id": "sample-3",
+    "question": "What are the system requirements?",
+    "groundTruthAnswer": "The system requires Node.js 20+, 4GB RAM minimum, and a PostgreSQL 15+ database.",
+    "relevantSources": ["setup-guide.txt"]
+  }
+]

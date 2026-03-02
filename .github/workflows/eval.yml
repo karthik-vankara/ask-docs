@@ -1,0 +1,99 @@
+# .github/workflows/eval.yml
+# Runs the RAG evaluation pipeline on every PR and blocks merge if quality drops
+
+name: RAG Evaluation Gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+jobs:
+  evaluate:
+    name: RAG Quality Gate
+    runs-on: ubuntu-latest
+
+    services:
+      chromadb:
+        image: chromadb/chroma:latest
+        ports:
+          - 8000:8000
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Ingest evaluation documents
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+          CHROMA_URL: http://localhost:8000
+          BM25_INDEX_PATH: ./data/bm25-index.json
+        run: |
+          mkdir -p data/docs data/eval
+          cp -r tests/eval-docs/* data/docs/ 2>/dev/null || true
+          npm run ingest -- ./data/docs
+
+      - name: Run RAG evaluation
+        id: eval
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+          CHROMA_URL: http://localhost:8000
+          BM25_INDEX_PATH: ./data/bm25-index.json
+          EVAL_DATASET_PATH: ./tests/golden-dataset.json
+          EVAL_OUTPUT_PATH: ./data/eval/results.json
+          FAITHFULNESS_THRESHOLD: "0.85"
+          ANSWER_RELEVANCY_THRESHOLD: "0.80"
+          CONTEXT_PRECISION_THRESHOLD: "0.75"
+        run: npm run evaluate
+
+      - name: Upload evaluation results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-results
+          path: data/eval/results.json
+
+      - name: Post results as PR comment
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '## RAG Evaluation Results\n\n';
+            try {
+              const report = JSON.parse(fs.readFileSync('data/eval/results.json', 'utf8'));
+              const m = report.averageMetrics;
+              const t = report.thresholds;
+              const fmt = (val, thr) => `${(val*100).toFixed(1)}% (≥${(thr*100).toFixed(0)}%) ${val >= thr ? '✅' : '❌'}`;
+              body += `| Metric | Score |\n|--------|-------|\n`;
+              body += `| Faithfulness | ${fmt(m.faithfulness, t.faithfulness)} |\n`;
+              body += `| Answer Relevancy | ${fmt(m.answerRelevancy, t.answerRelevancy)} |\n`;
+              body += `| Context Precision | ${fmt(m.contextPrecision, t.contextPrecision)} |\n`;
+              body += `| Context Recall | ${fmt(m.contextRecall, t.contextRecall)} |\n\n`;
+              body += report.overallPassed
+                ? '✅ **All quality thresholds met.**'
+                : '❌ **Quality thresholds not met.**';
+            } catch {
+              body += '⚠️ Could not parse evaluation results.';
+            }
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
