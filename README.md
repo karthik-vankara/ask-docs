@@ -1,5 +1,10 @@
 # Ask My Docs — Production RAG Application
 
+Hosted URLs:
+- Frontend project: https://ask-docs-two.vercel.app
+- Backend project: https://ask-docs-production.up.railway.app
+
+
 A production-grade, domain-specific document Q&A system built with TypeScript. It combines **hybrid retrieval** (BM25 keyword search + vector semantic search), **cross-encoder reranking** via Cohere, **strict citation enforcement** in every answer, and a **CI-gated evaluation pipeline** that blocks merges when quality drops.
 
 This is the most common pattern used in enterprise AI systems today.
@@ -369,6 +374,7 @@ curl -X POST http://localhost:3000/query \
 ### Step 5: Start the Frontend
 
 In a separate terminal:
+> Deployment notes: the app is live — frontend deployed on Vercel at https://ask-docs-two.vercel.app (project dashboard: https://vercel.com/vankarakarthik-7627s-projects) and backend deployed on Railway at https://ask-docs-production.up.railway.app (console: https://railway.com/dashboard). Both services auto–redeploy on pushes to `main`. Use the backend `/health` endpoint to verify availability.
 
 ```bash
 cd frontend
