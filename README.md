@@ -385,6 +385,9 @@ Open `http://localhost:5173` in your browser. You'll see the chat interface wher
 - Upload documents via the "Upload Docs" button
 - Ask questions and get answers with clickable `[1]`, `[2]` citations
 - Click any citation to see the source text in the side panel
+> **Deployed instances:**
+> - Frontend: https://ask-docs-two.vercel.app
+> - Backend: https://ask-docs-production.up.railway.app (check health with `/health`)
 
 ---
 
@@ -392,7 +395,11 @@ Open `http://localhost:5173` in your browser. You'll see the chat interface wher
 
 ### `GET /health`
 
-Returns server status.
+Returns server status. You can hit this endpoint on the deployed backend:
+
+```
+curl https://ask-docs-production.up.railway.app/health
+```
 
 ```json
 { "status": "ok", "timestamp": "2026-03-02T10:00:00.000Z" }
