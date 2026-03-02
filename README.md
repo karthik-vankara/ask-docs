@@ -21,10 +21,9 @@ This is the most common pattern used in enterprise AI systems today.
   - [Prerequisites](#prerequisites)
   - [Step 1: Clone & Install](#step-1-clone--install)
   - [Step 2: Configure Environment](#step-2-configure-environment)
-  - [Step 3: Start ChromaDB](#step-3-start-chromadb)
-  - [Step 4: Ingest Documents](#step-4-ingest-documents)
-  - [Step 5: Start the API Server](#step-5-start-the-api-server)
-  - [Step 6: Start the Frontend](#step-6-start-the-frontend)
+  - [Step 3: Ingest Documents](#step-3-ingest-documents)
+  - [Step 4: Start the API Server](#step-4-start-the-api-server)
+  - [Step 5: Start the Frontend](#step-5-start-the-frontend)
 - [API Reference](#api-reference)
 - [Testing & Evaluation Strategy](#testing--evaluation-strategy)
   - [Evaluation Metrics Explained](#evaluation-metrics-explained)
@@ -257,7 +256,7 @@ ask-my-docs/
 | Runtime             | Node.js 20+                | ESM modules, modern JS features                   |
 | LLM                 | OpenAI GPT-4o-mini          | Answer generation, evaluation judging             |
 | Embeddings          | OpenAI text-embedding-3-small | 1536-dim vectors for semantic search           |
-| Vector Store        | ChromaDB                    | Fast ANN (approximate nearest neighbor) search    |
+| Vector Store        | ChromaDB Cloud                | Managed vector database with ANN search           |
 | BM25 Index          | Custom pure-TS              | Keyword retrieval, no external dependency          |
 | Reranking           | Cohere rerank-english-v3.0  | Cross-encoder for precision reranking             |
 | API Framework       | Express.js                  | REST API with Zod validation, Helmet security     |
@@ -272,10 +271,10 @@ ask-my-docs/
 ### Prerequisites
 
 - **Node.js 20+** — `node --version` to verify
-- **Docker** — for running ChromaDB (`docker --version`)
 - **API Keys:**
   - OpenAI API key (for embeddings + generation + evaluation)
   - Cohere API key (for reranking — optional, falls back to local reranker)
+  - ChromaDB Cloud API key (for vector storage)
 
 ### Step 1: Clone & Install
 
@@ -302,6 +301,11 @@ Edit `.env` and fill in your keys:
 # Required
 OPENAI_API_KEY=sk-proj-your-openai-key-here
 
+# ChromaDB Cloud (required)
+CHROMA_API_KEY=ck-your-chromadb-cloud-api-key
+CHROMA_TENANT=your-tenant-id
+CHROMA_DATABASE=ask-docs
+
 # Optional (falls back to LocalReranker if missing)
 COHERE_API_KEY=your-cohere-key-here
 
@@ -309,26 +313,10 @@ COHERE_API_KEY=your-cohere-key-here
 API_KEY=my-secret-server-key
 
 # Defaults (change if needed)
-CHROMA_URL=http://localhost:8000
 PORT=3000
 ```
 
-### Step 3: Start ChromaDB
-
-ChromaDB is the vector database. Run it via Docker:
-
-```bash
-docker run -d -p 8000:8000 --name chromadb chromadb/chroma
-```
-
-Verify it's running:
-
-```bash
-curl http://localhost:8000/api/v1/heartbeat
-# Should return: {"nanosecond heartbeat": ...}
-```
-
-### Step 4: Ingest Documents
+### Step 3: Ingest Documents
 
 Place your documents (`.pdf`, `.md`, `.txt`) in `data/docs/`, then run:
 
@@ -352,7 +340,7 @@ You'll see output like:
 14:30:25 [info] Done. Files: 1, Chunks: 24, Failures: 0
 ```
 
-### Step 5: Start the API Server
+### Step 4: Start the API Server
 
 ```bash
 npm run dev
@@ -378,7 +366,7 @@ curl -X POST http://localhost:3000/query \
   -d '{"question": "How does authentication work?"}'
 ```
 
-### Step 6: Start the Frontend
+### Step 5: Start the Frontend
 
 In a separate terminal:
 
@@ -602,6 +590,9 @@ PR opened → Install deps → Typecheck → Ingest test docs → Run evaluation
 **Required GitHub Secrets:**
 - `OPENAI_API_KEY` — for embeddings, generation, and LLM judge
 - `COHERE_API_KEY` — for reranking (optional)
+- `CHROMA_API_KEY` — for ChromaDB Cloud vector storage
+- `CHROMA_TENANT` — your ChromaDB Cloud tenant ID
+- `CHROMA_DATABASE` — your ChromaDB Cloud database name
 
 ### Example: Full Evaluation Run
 
@@ -646,7 +637,7 @@ All major behaviors can be changed without modifying core logic:
 |---------|-------|---------|-------|
 | LLM model | `src/generation/rag-chain.ts` | `gpt-4o-mini` | Swap to `gpt-4o`, Claude, Gemini, etc. |
 | Embedding model | `src/ingestion/ingester.ts` + `src/retrieval/hybrid-retriever.ts` | `text-embedding-3-small` | Must match in both files |
-| Vector store | `src/retrieval/hybrid-retriever.ts` + `src/ingestion/ingester.ts` | ChromaDB | Replace with Qdrant, Pinecone, Weaviate |
+| Vector store | `src/retrieval/hybrid-retriever.ts` + `src/ingestion/ingester.ts` | ChromaDB Cloud | Replace with Qdrant, Pinecone, Weaviate |
 | Reranker | `src/rag-pipeline.ts` | `CrossEncoderReranker` | Change to `LocalReranker` for no-API mode |
 | Chunk size | `DocumentIngester` constructor | 512 chars, 50 overlap | Larger = more context per chunk, fewer chunks |
 | BM25 top-K | `src/rag-pipeline.ts` | 20 | More candidates = broader coverage, slower |

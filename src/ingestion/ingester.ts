@@ -3,7 +3,7 @@ import path from "path";
 import pdfParse from "pdf-parse";
 import { v4 as uuidv4 } from "uuid";
 import { OpenAIEmbeddings } from "@langchain/openai";
-import { ChromaClient, type Collection } from "chromadb";
+import { CloudClient, type Collection } from "chromadb";
 import type {
   DocumentChunk,
   ChunkMetadata,
@@ -72,7 +72,7 @@ async function loadDocument(filePath: string): Promise<string> {
 
 export class DocumentIngester {
   private embeddings: OpenAIEmbeddings;
-  private chroma: ChromaClient;
+  private chroma: CloudClient;
   private collection: Collection | null = null;
   private bm25Manager: BM25IndexManager;
   private config: IngestionConfig;
@@ -89,8 +89,10 @@ export class DocumentIngester {
       model: "text-embedding-3-small",
     });
 
-    this.chroma = new ChromaClient({
-      path: process.env["CHROMA_URL"] ?? "http://localhost:8000",
+    this.chroma = new CloudClient({
+      apiKey: process.env["CHROMA_API_KEY"] ?? "",
+      tenant: process.env["CHROMA_TENANT"] ?? "",
+      database: process.env["CHROMA_DATABASE"] ?? "ask-docs",
     });
 
     this.bm25Manager = new BM25IndexManager(
