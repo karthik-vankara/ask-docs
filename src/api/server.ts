@@ -151,9 +151,16 @@ app.use(
 // ─── Start Server ─────────────────────────────────────────────────────────────
 
 const PORT = parseInt(process.env["PORT"] ?? "3000", 10);
-app.listen(PORT, () => {
-  logger.info(`Ask My Docs API running on port ${PORT}`);
-  logger.info(`Health: http://localhost:${PORT}/health`);
+const HOST = process.env["HOST"] ?? "0.0.0.0";
+app.listen(PORT, HOST, () => {
+  logger.info(`Ask My Docs API running on ${HOST}:${PORT}`);
+  logger.info(`Health: http://${HOST}:${PORT}/health`);
+  logger.debug("Environment variables", {
+    port: PORT,
+    host: HOST,
+    chromaKey: !!process.env["CHROMA_API_KEY"],
+    openaiKey: !!process.env["OPENAI_API_KEY"],
+  });
 });
 
 export default app;
