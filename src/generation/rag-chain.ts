@@ -125,16 +125,33 @@ export class RAGChain {
     const rawAnswer = response.choices[0]?.message.content ?? "";
     const generationTime = Date.now() - genStart;
 
+    // ─── Capture and track token usage & costs ─────────────────────────────
+    // Extract usage metrics from OpenAI response for cost tracking
+    const inputTokens = response.usage?.prompt_tokens ?? 0;
+    const outputTokens = response.usage?.completion_tokens ?? 0;
+    const totalTokens = response.usage?.total_tokens ?? 0;
+
+    // Calculate estimated cost (GPT-4o-mini pricing as of March 2026)
+    // Input: $0.15 per 1M tokens, Output: $0.60 per 1M tokens
+    const inputCost = inputTokens * (0.15 / 1_000_000);
+    const outputCost = outputTokens * (0.60 / 1_000_000);
+    const totalCost = inputCost + outputCost;
+
+    logger.info("Generation complete", {
+      model: this.model,
+      ms: generationTime,
+      tokens: {
+        prompt: inputTokens,
+        completion: outputTokens,
+        total: totalTokens,
+      },
+      cost_usd: totalCost.toFixed(6),
+    });
+
     const { cleanAnswer, citations } = parseCitations(
       rawAnswer,
       rerankedChunks
     );
-
-    logger.info("Generation complete", {
-      model: this.model,
-      citations: citations.length,
-      ms: generationTime,
-    });
 
     const totalTime =
       timings.queryTime +
@@ -153,6 +170,11 @@ export class RAGChain {
         model: this.model,
         chunksRetrieved: rerankedChunks.length,
         chunksAfterRerank: rerankedChunks.length,
+        // Include token usage and cost for Langfuse tracking
+        inputTokens,
+        outputTokens,
+        totalTokens,
+        estimatedCostUsd: totalCost,
       },
     };
   }

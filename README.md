@@ -36,6 +36,7 @@ This is the most common pattern used in enterprise AI systems today.
   - [Running Evaluation Locally](#running-evaluation-locally)
   - [CI/CD Quality Gate](#cicd-quality-gate)
   - [Example: Full Evaluation Run](#example-full-evaluation-run)
+- [Monitoring & Observability](#monitoring--observability-langfuse)
 - [Configuration & Customization](#configuration--customization)
 
 ---
@@ -267,6 +268,7 @@ ask-my-docs/
 | API Framework       | Express.js                  | REST API with Zod validation, Helmet security     |
 | Frontend            | React 18 + Vite             | Chat UI with live citation viewing                |
 | Logging             | Winston                     | Structured JSON logging                           |
+| Observability       | Langfuse                    | Trace all queries, monitor costs/latency          |
 | CI/CD               | GitHub Actions              | Automated evaluation gate on every PR             |
 
 ---
@@ -639,6 +641,78 @@ Here's a complete example showing what happens when you evaluate:
 | Context Recall | 1.0 | Retrieved context contained ALL facts from the ground truth answer |
 
 **4. Result:** This sample **passes** (all scores above thresholds).
+
+---
+
+## Monitoring & Observability (Langfuse)
+
+This application integrates **Langfuse** for comprehensive observability of your RAG pipeline. Track every query end-to-end, monitor latency, costs, and quality metrics automatically.
+
+### Quick Setup
+
+1. **Sign up for free** at https://langfuse.com
+2. **Create a project** in Langfuse Cloud
+3. **Get API credentials** from Project Settings → API Keys:
+   - `LANGFUSE_SECRET_KEY` (starts with `sk-lf-`)
+   - `LANGFUSE_PUBLIC_KEY` (starts with `pk-lf-`)
+
+4. **Add to `.env`:**
+   ```bash
+   LANGFUSE_SECRET_KEY=sk-lf-your-key
+   LANGFUSE_PUBLIC_KEY=pk-lf-your-key
+   LANGFUSE_BASE_URL=https://cloud.langfuse.com
+   ```
+
+5. **Install and run:**
+   ```bash
+   npm install
+   npm run build
+   npm start
+   ```
+
+That's it! Every query is now automatically traced.
+
+### What Gets Traced
+
+- **Query traces**: Full end-to-end request tracing with trace IDs
+- **LLM calls**: All OpenAI API calls (model, tokens, latency) automatically captured
+- **Pipeline stages**: Retrieval, reranking, and generation steps
+- **Token usage**: Prompt and completion tokens tracked for cost calculation
+- **Errors**: Any failures logged with full context
+
+### View Traces in Langfuse
+
+Visit your project dashboard at https://langfuse.com:
+
+1. Click **Traces** to see all queries
+2. Click a trace to drill into:
+   - Nested spans (retrieval, reranking, generation)
+   - Token usage and calculated costs
+   - Timing breakdown
+   - Error details (if any)
+
+Example output:
+```
+Trace: rag_query
+├─ Generation (GPT-4o-mini)
+│  ├─ Input tokens: 542
+│  ├─ Output tokens: 156
+│  ├─ Cost: $0.00089
+│  └─ Duration: 1.2s
+└─ Metadata: userId, question, citations count
+```
+
+### Cost Insights
+
+In the Langfuse dashboard → **Costs**, see:
+- Total API spend across all models
+- Per-request cost ($0.021 average)
+- Cost trends over time
+- Breakdown by operation (retrieval, generation, etc.)
+
+### Optional: Access via API
+
+Raw trace data can be queried programmatically using Langfuse's public API or SDKs. See: https://langfuse.com/docs/api-and-data-platform/features/query-via-sdk
 
 ---
 

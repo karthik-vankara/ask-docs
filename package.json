@@ -19,6 +19,10 @@
   },
   "dependencies": {
     "@langchain/openai": "^0.3.0",
+    "@langfuse/otel": "^4.6.1",
+    "@langfuse/tracing": "^4.6.1",
+    "@opentelemetry/auto-instrumentations-node": "^0.70.1",
+    "@opentelemetry/sdk-node": "^0.212.0",
     "chromadb": "^1.9.2",
     "cohere-ai": "^7.13.0",
     "cors": "^2.8.5",

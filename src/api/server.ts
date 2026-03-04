@@ -1,19 +1,36 @@
+/**
+ * Express API Server with Langfuse Tracing
+ * 
+ * CRITICAL: 
+ * 1. dotenv/config must be loaded FIRST 
+ * 2. observability-init.ts must be imported SECOND (needs environment variables)
+ * 3. Everything else comes after
+ */
+
+// ─── Load Environment Variables FIRST ──────────────────────────────────────────
 import "dotenv/config";
+
+// ─── Initialize OpenTelemetry & Langfuse ──────────────────────────────────────
+import "../observability-init.js";
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
+import os from "os";
 import asyncHandler from "express-async-handler";
 import { z } from "zod";
 import { getPipeline } from "../rag-pipeline.js";
 import { DocumentIngester } from "../ingestion/ingester.js";
 import type { QueryResponse, IngestResponse } from "../types/index.js";
 import { logger } from "./logger.js";
+import { startActiveObservation, updateActiveTrace } from "../observability.js";
 
 const app = express();
 const upload = multer({ dest: "./data/uploads/" });
+
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
@@ -58,15 +75,63 @@ app.post(
     }
 
     const { question } = parsed.data;
+    // Use hostname as default userId if not provided in headers
+    const userId = (req.headers["x-user-id"] as string | undefined) || os.hostname();
 
-    const pipeline = getPipeline();
-    const response = await pipeline.query({
-      question,
-      topK: parsed.data.topK,
-    });
+    try {
+      // Wrap query execution with Langfuse tracing
+      await startActiveObservation(
+        "rag-query",
+        async (span) => {
+          // Set trace-level attributes (userId, sessionId, etc.)
+          updateActiveTrace({ userId });
 
-    const result: QueryResponse = { success: true, data: response };
-    res.json(result);
+          // Set input on span
+          span.update({
+            input: { question, topK: parsed.data.topK },
+          });
+
+          try {
+            const pipeline = getPipeline();
+            const response = await pipeline.query({
+              question,
+              topK: parsed.data.topK,
+            });
+
+            // Update span with answer and cost metadata
+            // Langfuse will read these from the OpenTelemetry span attributes
+            span.update({
+              output: response.answer,
+              metadata: {
+                model: response.metadata.model,
+                retrievedChunks: response.metadata.chunksAfterRerank,
+                citations: response.citations.length,
+                // Token and cost tracking for Langfuse
+                inputTokens: response.metadata.inputTokens,
+                outputTokens: response.metadata.outputTokens,
+                totalTokens: response.metadata.totalTokens,
+                estimatedCostUsd: response.metadata.estimatedCostUsd,
+              },
+            });
+
+            logger.info("Query traced successfully", {
+              userId,
+              model: response.metadata.model,
+              tokens: response.metadata.totalTokens,
+            });
+
+            const result: QueryResponse = { success: true, data: response };
+            res.json(result);
+          } catch (innerError) {
+            logger.error("Pipeline query error", { error: innerError });
+            throw innerError;
+          }
+        }
+      );
+    } catch (error) {
+      logger.error("Query error", { error });
+      throw error;
+    }
   })
 );
 
@@ -152,15 +217,29 @@ app.use(
 
 const PORT = parseInt(process.env["PORT"] ?? "3000", 10);
 const HOST = process.env["HOST"] ?? "0.0.0.0";
-app.listen(PORT, HOST, () => {
+const server = app.listen(PORT, HOST, () => {
   logger.info(`Ask My Docs API running on ${HOST}:${PORT}`);
   logger.info(`Health: http://${HOST}:${PORT}/health`);
+  const langfuseEnabled = !!(process.env["LANGFUSE_SECRET_KEY"] && process.env["LANGFUSE_PUBLIC_KEY"]);
+  logger.info(`Monitoring: ${langfuseEnabled ? "Langfuse enabled" : "Langfuse disabled (no credentials)"}`);
   logger.debug("Environment variables", {
     port: PORT,
     host: HOST,
     chromaKey: !!process.env["CHROMA_API_KEY"],
     openaiKey: !!process.env["OPENAI_API_KEY"],
+    langfuseEnabled,
   });
+});
+
+// Graceful shutdown: SDK handles flushing in observability-init.ts
+process.on("SIGTERM", () => {
+  logger.info("SIGTERM received, shutting down...");
+  server.close();
+});
+
+process.on("SIGINT", () => {
+  logger.info("SIGINT received, shutting down...");
+  server.close();
 });
 
 export default app;

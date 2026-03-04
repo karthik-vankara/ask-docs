@@ -82,6 +82,12 @@ export interface ResponseMetadata {
   model: string;
   chunksRetrieved: number;
   chunksAfterRerank: number;
+  // LLM token usage for cost tracking
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  // Estimated cost in USD
+  estimatedCostUsd?: number;
 }
 
 // ─── Ingestion Types ──────────────────────────────────────────────────────────
